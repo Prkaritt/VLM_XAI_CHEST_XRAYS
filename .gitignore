@@ -38,6 +38,16 @@ secrets/
 
 # Restricted datasets and derived data
 data/
+!data/
+data/*
+!data/raw/
+data/raw/*
+!data/raw/samples/
+data/raw/samples/*
+!data/raw/samples/README.md
+
+# Local-only external repositories and model caches
+external/
 
 # Experiment outputs
 runs/
