@@ -2,15 +2,15 @@
 
 ## Last Updated
 
-2026-09-16
+2026-09-17
 
 ## Current Phase
 
-Stage 0: Documentation and project scaffold
+Stage 1: Causal patch-occlusion prototype planning
 
 ## Overall Status
 
-Repository initialized; first local CheXagent single-image inference completed
+Research direction narrowed; first local CheXagent single-image inference completed
 
 ## Completed
 
@@ -32,15 +32,27 @@ Repository initialized; first local CheXagent single-image inference completed
 * Added a local-safe CheXagent loader to avoid the official class's full-model move after disk/CPU offload.
 * Added a debug flag to print full tracebacks for model-loading failures.
 * Completed the first real local CheXagent inference on one sample image using CPU float32.
+* Narrowed the research plan to answer-conditioned causal evidence invariance.
+* Marked the earlier generic heatmap-stability plan as superseded.
+* Added a model-independent patch occlusion utility for CheXagent-aligned `512x512` debug patch generation.
+* Generated and visually inspected a 4-patch debug occlusion set under ignored `runs/`.
 
 ## Current Research Direction
 
-Evaluate whether semantically equivalent chest X-ray questions produce:
+Evaluate whether clinically equivalent chest X-ray prompts that produce the same model answer rely on the same causal visual evidence.
 
-* Consistent answers
-* Stable visual explanations
-* Clinically grounded explanations
-* Faithful explanations under controlled perturbations
+Current objective:
+
+* Build causal patch-occlusion maps for answer-stable paraphrases.
+* Measure causal evidence similarity across paraphrases.
+* Test cross-paraphrase causal transfer.
+* Compare causal evidence regions with radiologist-annotated pathology regions.
+
+Central research question:
+
+```text
+When clinically equivalent prompts produce the same answer, does a medical VLM rely on the same causal visual evidence?
+```
 
 ## Not Yet Completed
 
@@ -48,17 +60,22 @@ Evaluate whether semantically equivalent chest X-ray questions produce:
 * Confirm access to the required underlying image files.
 * Inspect the QBA metadata structure.
 * Define the first pilot cohort.
-* Select the initial explanation method.
+* Inspect the Attention Without Grounding implementation for patch occlusion, answer-margin extraction, and causal map construction.
+* Select the exact answer-margin definition for CheXagent-2.3B.
+* Connect patch occlusion outputs to CheXagent answer-margin scoring.
+* Implement the causal map similarity matrix.
+* Implement cross-paraphrase causal transfer.
 * Decide whether subsequent model runs should stay local CPU-only or move to Colab/GPU.
 * Run the first experiment.
 
 ## Current Next Action
 
-Decide the next incremental workflow step after the successful single-image CheXagent answer: structured result logging or Colab/GPU setup.
+Implement CheXagent answer-margin extraction so patch occlusion can be scored as `original_margin - occluded_margin`.
 
 ## Current Decisions
 
-* Use CheXagent as the initial pretrained medical VLM.
+* Continue with CheXagent-2.3B as the current prototype VLM because the one-image closed-answer pipeline works locally.
+* Replicate the core experiment on a second VLM family only after the CheXagent causal-map workflow is complete.
 * Keep the official CheXagent repository under ignored `external/CheXagent/` when testing locally.
 * Keep Hugging Face model downloads under ignored `.cache/huggingface/` when testing locally.
 * Keep one-off local image samples under ignored `data/raw/samples/`.
@@ -68,21 +85,26 @@ Decide the next incremental workflow step after the successful single-image CheX
 * Do not fine-tune during the initial pilot.
 * Use frontal chest X-rays.
 * Begin with pleural effusion and pneumothorax.
-* Start with approximately 50 images.
-* Start with one original closed-answer yes/no question per image.
-* Add paraphrases and question variants only after the single-image workflow works.
-* Analyze answer instability separately from explanation instability.
-* Evaluate stability, clinical grounding, and faithfulness.
+* Start with one image and two clinically equivalent answer-stable paraphrases.
+* Scale to 3-4 paraphrases only after the first 2x2 causal-evidence similarity matrix works.
+* Use causal patch-occlusion maps as the main explanation object.
+* Use CheXagent-aligned `512x512` images for the first patching prototype.
+* Use a `16x16` grid with soft gray-fill masking for the first patching prototype.
+* Treat saliency/attention heatmaps as superseded for the main method.
+* Analyze answer instability separately from causal-evidence instability.
+* Use clinical grounding as supporting validation, not the main novelty claim.
 
 ## Blockers
 
 * Local dataset file paths and metadata structure must be confirmed.
 * Underlying image access must be confirmed.
+* CheXagent answer-margin extraction must be confirmed.
+* The Attention Without Grounding patch-occlusion implementation has been inspected for reusable design choices.
 * CheXagent dependencies were installed locally by the user.
 * CheXagent model files have downloaded into the project-local Hugging Face cache.
 * The official CheXagent class failed locally because offloaded model modules cannot be moved afterward.
 * The local-safe loader failed with MPS/disk offload, but succeeded with CPU float32.
-* The initial explanation method has not yet been selected.
+* The initial patch grid and occlusion fill have been selected for the prototype, but the answer-margin definition has not yet been finalized.
 
 ## Handoff Instructions
 

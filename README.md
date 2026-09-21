@@ -2,23 +2,137 @@
 
 ## Overview
 
-This repository contains a pilot study of visual explanations produced by a pretrained medical vision-language model for chest X-ray questions.
+This repository contains a pilot study of causal visual evidence used by medical vision-language models when answering chest X-ray questions.
 
-The project examines whether semantically equivalent questions that produce the same answer also produce similar visual explanations.
+The project examines whether clinically equivalent paraphrased questions that produce the same answer also rely on the same causally important image regions, and whether those regions remain clinically grounded.
 
-## Current Research Scope
+## Current Research Objective
 
-The initial pilot uses:
+The current objective is to determine whether medical VLMs that produce the same answer to clinically equivalent paraphrased questions also rely on the same causal visual evidence.
+
+Formal statement:
+
+```text
+This study investigates causal-evidence invariance in medical VLMs under
+meaning-preserving query reformulation. Specifically, we test whether
+answer-stable paraphrases depend on similar causally important image regions,
+whether causal evidence identified under one paraphrase transfers to another
+equivalent paraphrase, and whether that evidence aligns with
+radiologist-annotated pathology regions.
+```
+
+Central research question:
+
+```text
+When clinically equivalent prompts produce the same answer, does a medical VLM
+rely on the same causal visual evidence?
+```
+
+## Revised Scope
+
+The current pilot uses:
 
 - MIMIC-Ext-CXR-QBA v1.0.1
 - Frontal chest X-rays
 - Pleural effusion and pneumothorax
-- One pretrained medical VLM
-- One explanation method
-- Original questions and three paraphrases
-- Explanation stability, clinical grounding, and perturbation-based faithfulness
+- Current prototype model: CheXagent-2.3B
+- Later comparison model: one second VLM family after the CheXagent causal-map workflow is complete
+- One image and two paraphrases first, then 3-4 paraphrases
+- Causal patch-occlusion maps as the main explanation object
+- Cross-paraphrase causal transfer
+- Clinical grounding against radiologist-annotated pathology regions
 
 See `PROJECT_BRIEF.md` for the complete scope.
+
+## Superseded Research Assumptions
+
+The earlier plan emphasized generic heatmap stability, attention/saliency comparison, broad perturbation faithfulness, and answer-flip analysis. That plan is now superseded.
+
+The narrowed contribution is:
+
+```text
+Answer-conditioned causal evidence invariance.
+```
+
+The headline failure mode is:
+
+```text
+Same answer, different evidence.
+```
+
+Ordinary attention or saliency heatmaps should not be the main explanation mechanism. They may be used for context later, but the main explanation object should be a causal patch-occlusion map.
+
+## Core Methodology
+
+For each image-question pair:
+
+1. Run baseline model inference.
+2. Extract the answer and answer margin.
+3. Divide the image into a patch grid.
+4. Occlude one patch at a time.
+5. Re-run the VLM.
+6. Compute the answer-margin drop for each patch.
+7. Assemble a causal importance map.
+
+For patch `r` and question `q`:
+
+```text
+delta_r(q) = margin_original(q) - margin_occluded_patch_r(q)
+```
+
+A large positive `delta_r(q)` means removing patch `r` substantially reduced support for the original answer.
+
+For paraphrase groups:
+
+```text
+q1 -> C1
+q2 -> C2
+q3 -> C3
+q4 -> C4
+```
+
+The main analysis compares:
+
+- causal map similarity across answer-stable paraphrases
+- top-k causal patch overlap / IoU
+- cross-paraphrase causal transfer
+- clinical grounding against radiologist annotations
+
+The primary result should be a paraphrase causal-evidence similarity matrix. The strongest methodological addition is cross-paraphrase causal transfer: identify causal evidence under `q_i`, intervene on that evidence, and test the effect under `q_j`.
+
+## Patch Occlusion Utility
+
+The first causal-map building block is a model-independent patch occlusion utility:
+
+```text
+src/patch_occlusion.py
+```
+
+For CheXagent, the visual input is resized to `512x512`, so the initial debug configuration uses a `16x16` grid with `32x32` pixel patches and soft gray-fill masking.
+
+Generate a small debug set first:
+
+```bash
+python3 -m src.patch_occlusion \
+  --image data/raw/samples/sample_chest_xray.jpg \
+  --output-dir runs/patch_debug/sample_chest_xray \
+  --image-size 512 \
+  --grid-size 16 \
+  --fill gray \
+  --blur-radius 3 \
+  --limit 4
+```
+
+The utility writes:
+
+```text
+runs/patch_debug/sample_chest_xray/original_resized.png
+runs/patch_debug/sample_chest_xray/metadata.json
+runs/patch_debug/sample_chest_xray/manifest.jsonl
+runs/patch_debug/sample_chest_xray/occluded/
+```
+
+`runs/` is ignored by Git. These generated images are local debugging artifacts and should not be committed.
 
 ## Repository Files
 
@@ -35,11 +149,13 @@ Additional folders such as `configs/`, `data/`, `src/`, and `runs/` will be adde
 
 ## Initial CheXagent Workflow
 
-The first implementation milestone is intentionally small:
+The first completed implementation milestone is intentionally small:
 
 ```text
 one chest X-ray image + one closed yes/no question -> CheXagent -> parsed answer
 ```
+
+This is the current working prototype model path. The causal patch-occlusion workflow should be built on top of this working CheXagent pipeline first, then replicated on another model family later if time and compute allow.
 
 The wrapper lives at:
 
@@ -170,4 +286,4 @@ Agents should update `STATUS.md` after meaningful progress and record important 
 
 ## Project Status
 
-This project is currently in the documentation and planning stage. No data processing or model experiments have started.
+The research direction is defined and narrowed around causal evidence invariance under answer-preserving paraphrases. A single-image CheXagent closed-answer inference smoke test has completed locally. The immediate development milestone is to generate and compare causal maps for one image and two answer-stable paraphrases.
