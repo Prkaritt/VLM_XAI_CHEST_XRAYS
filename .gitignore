@@ -54,6 +54,9 @@ runs/
 logs/
 *.log
 
+# Local-only temporary helper scripts
+src/build_pleural_effusion_pilot_manifest.py
+
 # Notebook and tool caches
 .ipynb_checkpoints/
 .pytest_cache/
