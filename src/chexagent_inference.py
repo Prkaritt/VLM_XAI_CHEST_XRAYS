@@ -35,12 +35,25 @@ DEFAULT_SYSTEM_CONTEXT = (
 
 
 @dataclass(frozen=True)
+class YesNoScore:
+    yes_score: float
+    no_score: float
+    yes_probability: float
+    no_probability: float
+    margin: float
+    predicted_answer: ParsedAnswer
+    yes_token_ids: tuple[int, ...]
+    no_token_ids: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class InferenceResult:
     image: Path
     question: str
     prompt: str
     raw_response: str
     parsed_answer: ParsedAnswer
+    yes_no_score: YesNoScore | None = None
     model_id: str = DEFAULT_MODEL_ID
 
 
@@ -184,16 +197,7 @@ class LocalCheXagent:
     def generate(self, paths: list[str], prompt: str) -> str:
         import torch
 
-        query = self.tokenizer.from_list_format(
-            [*[{"image": path} for path in paths], {"text": prompt}]
-        )
-        conv = [
-            {"from": "system", "value": "You are a helpful assistant."},
-            {"from": "human", "value": query},
-        ]
-        input_ids = self.tokenizer.apply_chat_template(
-            conv, add_generation_prompt=True, return_tensors="pt"
-        )
+        input_ids = self.build_input_ids(paths=paths, prompt=prompt)
 
         with torch.no_grad():
             output = self.model.generate(
@@ -206,6 +210,66 @@ class LocalCheXagent:
                 max_new_tokens=32,
             )[0]
         return self.tokenizer.decode(output[input_ids.size(1) : -1])
+
+    def build_input_ids(self, paths: list[str], prompt: str):
+        query = self.tokenizer.from_list_format(
+            [*[{"image": path} for path in paths], {"text": prompt}]
+        )
+        conv = [
+            {"from": "system", "value": "You are a helpful assistant."},
+            {"from": "human", "value": query},
+        ]
+        input_ids = self.tokenizer.apply_chat_template(
+            conv, add_generation_prompt=True, return_tensors="pt"
+        )
+        return input_ids
+
+    def single_token_ids(self, variants: list[str]) -> tuple[int, ...]:
+        """Return unique one-token ids for text variants."""
+        token_ids: list[int] = []
+        for variant in variants:
+            encoded = self.tokenizer.encode(variant, add_special_tokens=False)
+            if len(encoded) == 1 and encoded[0] not in token_ids:
+                token_ids.append(encoded[0])
+        if not token_ids:
+            joined = ", ".join(repr(variant) for variant in variants)
+            raise ValueError(f"No single-token candidate found for variants: {joined}")
+        return tuple(token_ids)
+
+    def score_yes_no(self, paths: list[str], prompt: str) -> YesNoScore:
+        """Score the next-token preference for Yes versus No."""
+        import torch
+
+        yes_token_ids = self.single_token_ids(["Yes", " yes", "yes", " Yes"])
+        no_token_ids = self.single_token_ids(["No", " no", "no", " No"])
+        input_ids = self.build_input_ids(paths=paths, prompt=prompt).to(self.input_device)
+
+        with torch.no_grad():
+            output = self.model(input_ids=input_ids)
+            next_token_logits = output.logits[0, -1, :]
+            yes_score = torch.logsumexp(
+                next_token_logits[torch.tensor(yes_token_ids, device=next_token_logits.device)],
+                dim=0,
+            )
+            no_score = torch.logsumexp(
+                next_token_logits[torch.tensor(no_token_ids, device=next_token_logits.device)],
+                dim=0,
+            )
+            class_scores = torch.stack([yes_score, no_score])
+            class_probs = torch.softmax(class_scores.float(), dim=0)
+            margin = yes_score - no_score
+
+        predicted_answer: ParsedAnswer = "yes" if margin.item() >= 0 else "no"
+        return YesNoScore(
+            yes_score=float(yes_score.item()),
+            no_score=float(no_score.item()),
+            yes_probability=float(class_probs[0].item()),
+            no_probability=float(class_probs[1].item()),
+            margin=float(margin.item()),
+            predicted_answer=predicted_answer,
+            yes_token_ids=yes_token_ids,
+            no_token_ids=no_token_ids,
+        )
 
 
 def add_optional_repo_to_path(chexagent_repo: Path | None) -> None:
@@ -272,6 +336,7 @@ def run_closed_answer_inference(
     loader: LoaderName = "local",
     dtype: DtypeName = "auto",
     offload_folder: Path = DEFAULT_OFFLOAD_FOLDER,
+    score_yes_no: bool = False,
 ) -> InferenceResult:
     """Run or simulate one closed-answer CheXagent inference."""
     image_path = image.expanduser().resolve()
@@ -284,6 +349,9 @@ def run_closed_answer_inference(
     resolved_device = resolve_device(device)
 
     if mock_response is None:
+        if loader == "official" and score_yes_no:
+            raise ValueError("--score-yes-no is supported only with --loader local.")
+
         agent = load_chexagent(
             chexagent_repo=chexagent_repo,
             device=resolved_device,
@@ -292,8 +360,14 @@ def run_closed_answer_inference(
             offload_folder=offload_folder,
         )
         raw_response = agent.generate([str(image_path)], prompt)
+        yes_no_score = (
+            agent.score_yes_no([str(image_path)], prompt)
+            if score_yes_no and isinstance(agent, LocalCheXagent)
+            else None
+        )
     else:
         raw_response = mock_response
+        yes_no_score = None
 
     return InferenceResult(
         image=image_path,
@@ -301,6 +375,7 @@ def run_closed_answer_inference(
         prompt=prompt,
         raw_response=raw_response,
         parsed_answer=parse_yes_no_response(raw_response),
+        yes_no_score=yes_no_score,
     )
 
 
@@ -346,6 +421,11 @@ def parse_args() -> argparse.Namespace:
         help="Skip model loading and parse this response instead. Useful for local script testing.",
     )
     parser.add_argument(
+        "--score-yes-no",
+        action="store_true",
+        help="Also compute next-token Yes/No scores. Supported only with --loader local.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print the constructed prompt and device selection without loading CheXagent.",
@@ -381,6 +461,7 @@ def main() -> int:
             loader=args.loader,
             dtype=args.dtype,
             offload_folder=args.offload_folder,
+            score_yes_no=args.score_yes_no,
         )
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -392,6 +473,15 @@ def main() -> int:
     print(f"Image: {result.image}")
     print(f"Question: {result.question}")
     print(f"Parsed answer: {result.parsed_answer}")
+    if result.yes_no_score is not None:
+        print(f"Score predicted answer: {result.yes_no_score.predicted_answer}")
+        print(f"Yes score: {result.yes_no_score.yes_score:.6f}")
+        print(f"No score: {result.yes_no_score.no_score:.6f}")
+        print(f"Yes probability among Yes/No: {result.yes_no_score.yes_probability:.6f}")
+        print(f"No probability among Yes/No: {result.yes_no_score.no_probability:.6f}")
+        print(f"Yes-No margin: {result.yes_no_score.margin:.6f}")
+        print(f"Yes token ids: {result.yes_no_score.yes_token_ids}")
+        print(f"No token ids: {result.yes_no_score.no_token_ids}")
     print(f"Raw response: {result.raw_response}")
     return 0
 

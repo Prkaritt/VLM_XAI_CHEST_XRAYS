@@ -2,15 +2,15 @@
 
 ## Last Updated
 
-2026-09-17
+2026-09-21
 
 ## Current Phase
 
-Stage 1: Causal patch-occlusion prototype planning
+Stage 1: Causal patch-occlusion scoring prototype
 
 ## Overall Status
 
-Research direction narrowed; first local CheXagent single-image inference completed
+CheXagent single-image inference works locally; Yes/No score extraction has been added and needs model validation
 
 ## Completed
 
@@ -36,6 +36,8 @@ Research direction narrowed; first local CheXagent single-image inference comple
 * Marked the earlier generic heatmap-stability plan as superseded.
 * Added a model-independent patch occlusion utility for CheXagent-aligned `512x512` debug patch generation.
 * Generated and visually inspected a 4-patch debug occlusion set under ignored `runs/`.
+* Added optional next-token Yes/No score extraction to the local CheXagent runner.
+* Added `--score-yes-no` for reporting Yes/No scores, probabilities among the two labels, and the Yes-No margin.
 
 ## Current Research Direction
 
@@ -61,7 +63,7 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 * Inspect the QBA metadata structure.
 * Define the first pilot cohort.
 * Inspect the Attention Without Grounding implementation for patch occlusion, answer-margin extraction, and causal map construction.
-* Select the exact answer-margin definition for CheXagent-2.3B.
+* Validate CheXagent-2.3B Yes/No score extraction on the sample image.
 * Connect patch occlusion outputs to CheXagent answer-margin scoring.
 * Implement the causal map similarity matrix.
 * Implement cross-paraphrase causal transfer.
@@ -70,7 +72,7 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 
 ## Current Next Action
 
-Implement CheXagent answer-margin extraction so patch occlusion can be scored as `original_margin - occluded_margin`.
+Run the sample image with `--score-yes-no` and confirm the reported margin is consistent with the generated answer.
 
 ## Current Decisions
 
@@ -90,6 +92,8 @@ Implement CheXagent answer-margin extraction so patch occlusion can be scored as
 * Use causal patch-occlusion maps as the main explanation object.
 * Use CheXagent-aligned `512x512` images for the first patching prototype.
 * Use a `16x16` grid with soft gray-fill masking for the first patching prototype.
+* Use the local CheXagent runner for Yes/No score extraction because it exposes the model and tokenizer logits directly.
+* Treat the Yes-No margin as a model-internal support score, not a calibrated clinical probability.
 * Treat saliency/attention heatmaps as superseded for the main method.
 * Analyze answer instability separately from causal-evidence instability.
 * Use clinical grounding as supporting validation, not the main novelty claim.
@@ -98,13 +102,13 @@ Implement CheXagent answer-margin extraction so patch occlusion can be scored as
 
 * Local dataset file paths and metadata structure must be confirmed.
 * Underlying image access must be confirmed.
-* CheXagent answer-margin extraction must be confirmed.
+* CheXagent answer-margin extraction has been implemented but must be validated with a real model run.
 * The Attention Without Grounding patch-occlusion implementation has been inspected for reusable design choices.
 * CheXagent dependencies were installed locally by the user.
 * CheXagent model files have downloaded into the project-local Hugging Face cache.
 * The official CheXagent class failed locally because offloaded model modules cannot be moved afterward.
 * The local-safe loader failed with MPS/disk offload, but succeeded with CPU float32.
-* The initial patch grid and occlusion fill have been selected for the prototype, but the answer-margin definition has not yet been finalized.
+* The initial patch grid, occlusion fill, and Yes-No margin definition have been selected for the prototype.
 
 ## Handoff Instructions
 

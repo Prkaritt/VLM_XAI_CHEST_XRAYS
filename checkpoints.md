@@ -48,3 +48,11 @@
 * Confirmed CPU float16 reached the visual encoder but failed with a float/half dtype mismatch.
 * Completed the first real local CheXagent inference using `python3`, CPU, and float32 on `data/raw/samples/sample_chest_xray.jpg`.
 * The first local model response to "Is there pleural effusion?" was parsed as `no` with raw response `No`.
+
+## 2026-09-21
+
+* Added optional next-token Yes/No score extraction to `src/chexagent_inference.py`.
+* Kept score extraction local-loader only because the project-side runner exposes the CheXagent model and tokenizer logits directly.
+* Added `--score-yes-no` to report Yes score, No score, probabilities among the two labels, and the Yes-No margin.
+* Defined the first support score for patch occlusion as the Yes-No margin from CheXagent's next-token logits.
+* Did not run a real model scoring pass; the next step is for the user to validate `--score-yes-no` on the sample image using the existing local environment.
