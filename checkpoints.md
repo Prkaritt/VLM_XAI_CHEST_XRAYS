@@ -64,3 +64,11 @@
 * Validated CheXagent Yes/No score extraction on one positive MIMIC-CXR pilot image; both generated answer and score-predicted answer were `yes`.
 * Added `src/run_chexagent_baseline_manifest.py` to run CheXagent baseline inference over a manifest and save raw responses, parsed answers, Yes/No scores, probabilities, and margins.
 * Kept the temporary pilot-manifest builder and generated manifest outputs local/ignored.
+
+## 2026-09-23
+
+* Completed the 10-image CheXagent baseline pilot; 7 of 10 predictions matched the manual Pleural Effusion labels.
+* Scored a coarse `4x4` patch-occlusion grid for the first strong positive case and confirmed support-drop scoring works across 16 patches.
+* Added `src/vlm_runner.py`, a reusable yes/no VLM runner interface with CheXagent as the first backend.
+* Added `src/generate_blank_controls.py` and generated reusable ignored `512x512` gray, black, and white blank controls under `runs/controls/`.
+* Added `src/run_visual_control_experiment.py` to compare a real image against the shared blank controls while keeping the model backend swappable.

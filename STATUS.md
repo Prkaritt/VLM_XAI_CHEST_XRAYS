@@ -2,15 +2,15 @@
 
 ## Last Updated
 
-2026-09-21
+2026-09-23
 
 ## Current Phase
 
-Stage 1: Causal patch-occlusion scoring prototype
+Stage 1: Causal scoring and visual-control prototype
 
 ## Overall Status
 
-CheXagent single-image inference and Yes/No score extraction work on one downloaded MIMIC-CXR pilot image
+CheXagent baseline scoring, coarse patch occlusion, and reusable visual-control setup work for the first MIMIC-CXR pilot case
 
 ## Completed
 
@@ -41,6 +41,11 @@ CheXagent single-image inference and Yes/No score extraction work on one downloa
 * Validated `--score-yes-no` on one downloaded MIMIC-CXR pilot image; generated answer and score-predicted answer both returned `yes`.
 * Downloaded the 10-image Pleural Effusion pilot cohort selected from the MIMIC-CXR-JPG test split.
 * Added a baseline manifest runner to process selected pilot images and save CheXagent responses plus Yes/No margins.
+* Ran the full 10-image CheXagent baseline pilot; 7 of 10 predictions matched the manual Pleural Effusion label.
+* Generated and scored a `4x4` coarse patch-occlusion grid for the first strong positive case.
+* Added a reusable VLM yes/no runner abstraction with CheXagent as the first backend.
+* Added reusable blank visual controls: gray, black, and white `512x512` images.
+* Added a visual-control experiment runner for comparing real images against shared blank controls.
 
 ## Current Research Direction
 
@@ -61,10 +66,10 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 
 ## Not Yet Completed
 
-* Run baseline CheXagent inference for all 10 pilot images.
 * Inspect the QBA metadata structure.
 * Inspect the Attention Without Grounding implementation for patch occlusion, answer-margin extraction, and causal map construction.
-* Connect patch occlusion outputs to CheXagent answer-margin scoring.
+* Visualize the `4x4` causal patch-occlusion map for the first positive case.
+* Run the real/gray/black/white visual-control experiment for the first positive case.
 * Implement the causal map similarity matrix.
 * Implement cross-paraphrase causal transfer.
 * Decide whether subsequent model runs should stay local CPU-only or move to Colab/GPU.
@@ -72,7 +77,7 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 
 ## Current Next Action
 
-Run `src/run_chexagent_baseline_manifest.py` with `--limit 1`, then run the full 10-image baseline if the smoke test succeeds.
+Run `src/run_visual_control_experiment.py` for the first positive case and compare the real-image margin against gray, black, and white blank-image margins.
 
 ## Current Decisions
 
@@ -92,7 +97,9 @@ Run `src/run_chexagent_baseline_manifest.py` with `--limit 1`, then run the full
 * Scale to 3-4 paraphrases only after the first 2x2 causal-evidence similarity matrix works.
 * Use causal patch-occlusion maps as the main explanation object.
 * Use CheXagent-aligned `512x512` images for the first patching prototype.
-* Use a `16x16` grid with soft gray-fill masking for the first patching prototype.
+* Use a `4x4` grid with soft gray-fill masking for the first coarse patching prototype; finer grids can be added after visualization.
+* Use reusable `512x512` gray, black, and white blank images as visual input sanity controls.
+* Keep model-specific logic behind a small VLM yes/no runner interface where possible.
 * Use the local CheXagent runner for Yes/No score extraction because it exposes the model and tokenizer logits directly.
 * Treat the Yes-No margin as a model-internal support score, not a calibrated clinical probability.
 * Treat saliency/attention heatmaps as superseded for the main method.
@@ -103,7 +110,7 @@ Run `src/run_chexagent_baseline_manifest.py` with `--limit 1`, then run the full
 
 * Local dataset file paths and metadata structure must be confirmed.
 * Underlying image access must be confirmed.
-* CheXagent answer-margin extraction has been validated on one real MIMIC-CXR pilot image, but not yet across the full 10-image cohort.
+* CheXagent answer-margin extraction has been validated across the 10-image baseline pilot and a 16-patch coarse occlusion run.
 * The Attention Without Grounding patch-occlusion implementation has been inspected for reusable design choices.
 * CheXagent dependencies were installed locally by the user.
 * CheXagent model files have downloaded into the project-local Hugging Face cache.
