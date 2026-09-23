@@ -10,7 +10,7 @@ Stage 1: Causal patch-occlusion scoring prototype
 
 ## Overall Status
 
-CheXagent single-image inference works locally; Yes/No score extraction has been added and needs model validation
+CheXagent single-image inference and Yes/No score extraction work on one downloaded MIMIC-CXR pilot image
 
 ## Completed
 
@@ -38,6 +38,9 @@ CheXagent single-image inference works locally; Yes/No score extraction has been
 * Generated and visually inspected a 4-patch debug occlusion set under ignored `runs/`.
 * Added optional next-token Yes/No score extraction to the local CheXagent runner.
 * Added `--score-yes-no` for reporting Yes/No scores, probabilities among the two labels, and the Yes-No margin.
+* Validated `--score-yes-no` on one downloaded MIMIC-CXR pilot image; generated answer and score-predicted answer both returned `yes`.
+* Downloaded the 10-image Pleural Effusion pilot cohort selected from the MIMIC-CXR-JPG test split.
+* Added a baseline manifest runner to process selected pilot images and save CheXagent responses plus Yes/No margins.
 
 ## Current Research Direction
 
@@ -58,12 +61,9 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 
 ## Not Yet Completed
 
-* Verify local access to the required dataset files.
-* Confirm access to the required underlying image files.
+* Run baseline CheXagent inference for all 10 pilot images.
 * Inspect the QBA metadata structure.
-* Define the first pilot cohort.
 * Inspect the Attention Without Grounding implementation for patch occlusion, answer-margin extraction, and causal map construction.
-* Validate CheXagent-2.3B Yes/No score extraction on the sample image.
 * Connect patch occlusion outputs to CheXagent answer-margin scoring.
 * Implement the causal map similarity matrix.
 * Implement cross-paraphrase causal transfer.
@@ -72,7 +72,7 @@ When clinically equivalent prompts produce the same answer, does a medical VLM r
 
 ## Current Next Action
 
-Run the sample image with `--score-yes-no` and confirm the reported margin is consistent with the generated answer.
+Run `src/run_chexagent_baseline_manifest.py` with `--limit 1`, then run the full 10-image baseline if the smoke test succeeds.
 
 ## Current Decisions
 
@@ -81,6 +81,7 @@ Run the sample image with `--score-yes-no` and confirm the reported margin is co
 * Keep the official CheXagent repository under ignored `external/CheXagent/` when testing locally.
 * Keep Hugging Face model downloads under ignored `.cache/huggingface/` when testing locally.
 * Keep one-off local image samples under ignored `data/raw/samples/`.
+* Keep downloaded MIMIC-CXR-JPG images under ignored `mimic-cxr-jpg/`.
 * Prefer the project-side local-safe CheXagent loader for low-memory local testing; keep the official loader available for comparison.
 * Use `python3` in user-facing run commands.
 * Use `--device cpu --dtype float32` for the reliable local smoke-test path on the current machine.
@@ -102,7 +103,7 @@ Run the sample image with `--score-yes-no` and confirm the reported margin is co
 
 * Local dataset file paths and metadata structure must be confirmed.
 * Underlying image access must be confirmed.
-* CheXagent answer-margin extraction has been implemented but must be validated with a real model run.
+* CheXagent answer-margin extraction has been validated on one real MIMIC-CXR pilot image, but not yet across the full 10-image cohort.
 * The Attention Without Grounding patch-occlusion implementation has been inspected for reusable design choices.
 * CheXagent dependencies were installed locally by the user.
 * CheXagent model files have downloaded into the project-local Hugging Face cache.

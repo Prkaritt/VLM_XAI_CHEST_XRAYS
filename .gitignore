@@ -45,6 +45,7 @@ data/raw/*
 !data/raw/samples/
 data/raw/samples/*
 !data/raw/samples/README.md
+mimic-cxr-jpg/
 
 # Local-only external repositories and model caches
 external/

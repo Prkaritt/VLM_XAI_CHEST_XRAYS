@@ -56,3 +56,11 @@
 * Added `--score-yes-no` to report Yes score, No score, probabilities among the two labels, and the Yes-No margin.
 * Defined the first support score for patch occlusion as the Yes-No margin from CheXagent's next-token logits.
 * Did not run a real model scoring pass; the next step is for the user to validate `--score-yes-no` on the sample image using the existing local environment.
+
+## 2026-09-21
+
+* Built a 10-image Pleural Effusion pilot cohort locally from the MIMIC-CXR-JPG manually labeled test-set file, split metadata, image metadata, and `IMAGE_FILENAMES`.
+* Downloaded only the selected pilot JPG images into ignored `mimic-cxr-jpg/`.
+* Validated CheXagent Yes/No score extraction on one positive MIMIC-CXR pilot image; both generated answer and score-predicted answer were `yes`.
+* Added `src/run_chexagent_baseline_manifest.py` to run CheXagent baseline inference over a manifest and save raw responses, parsed answers, Yes/No scores, probabilities, and margins.
+* Kept the temporary pilot-manifest builder and generated manifest outputs local/ignored.
